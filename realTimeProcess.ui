@@ -26,9 +26,9 @@
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,5">
+   <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,5">
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout" stretch="1,1,1,1">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="1,1,1,0">
       <property name="spacing">
        <number>0</number>
       </property>
@@ -54,13 +54,58 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="comboBox">
+         <widget class="QComboBox" name="selectRegister">
           <property name="maximumSize">
            <size>
             <width>16777215</width>
             <height>16777215</height>
            </size>
           </property>
+          <item>
+           <property name="text">
+            <string>GICP</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>改进GICP</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>ICP</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>NICP</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>non-linearICP</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>FPFH-SAC</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>4pcs</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>k4pcs</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>NDT</string>
+           </property>
+          </item>
          </widget>
         </item>
         <item>
@@ -100,17 +145,42 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="comboBox_2">
+         <widget class="QComboBox" name="selectPostProcess">
           <property name="maximumSize">
            <size>
             <width>16777215</width>
             <height>16777215</height>
            </size>
           </property>
+          <item>
+           <property name="text">
+            <string>ISS</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Random</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>voexl</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Curvature</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>mesh</string>
+           </property>
+          </item>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="startAfterDeal">
+         <widget class="QPushButton" name="startPostProcess">
           <property name="maximumSize">
            <size>
             <width>16777215</width>
@@ -221,6 +291,13 @@
       </item>
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_5">
+        <item>
+         <widget class="QPushButton" name="clearPointCLoud">
+          <property name="text">
+           <string>清空点云</string>
+          </property>
+         </widget>
+        </item>
         <item>
          <widget class="QPushButton" name="saveCurrentPointCloud">
           <property name="text">

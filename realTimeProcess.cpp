@@ -1,43 +1,76 @@
 #include "realTimeProcess.h"
-#include <pcl/visualization/pcl_visualizer.h>
-#include <QFileDialog>
+
+//更新当前点云显示
+void updatePointCloudShow() {
+
+}
 
 realTimeProcess::realTimeProcess(QWidget* parent) : QMainWindow(parent) {
     ui.setupUi(this);
-
+    //初始化相关点云
+    cloudShow.reset(new PointCloudT());
+    cloudTar.reset(new PointCloudT());
+    cloudSrc.reset(new PointCloudT());
     initialVtkWidget();
 
-    connect(ui.actionloadTarFile, SIGNAL(triggered()), this, SLOT(onOpen()));
-    connect(ui.enterSystem, SIGNAL(triggered()), this, SLOT(enterSystem()));
+    connect(ui.actionloadTarFile, SIGNAL(triggered()), this, SLOT(loadTar()));
+    connect(ui.actionloadSrcFile, SIGNAL(triggered()), this, SLOT(loadSrc()));
+    connect(ui.enterSystem, SIGNAL(clicked()), this, SLOT(enterSystem()));
+    connect(ui.startRegister, SIGNAL(clicked()), this, SLOT(startReg()));
 }
 
 realTimeProcess::~realTimeProcess() {}
 
-void realTimeProcess::onOpen() {
+void realTimeProcess::loadSrc() {
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(
-        new pcl::PointCloud<pcl::PointXYZ>());
-    QString fileName = QFileDialog::getOpenFileName(this, "Open PointCloud", ".",
-        "Open PLY files(*.ply)");
+    QString filter = tr("Point Cloud Files (*.ply *.pcd)");
+    QString fileName = QFileDialog::getOpenFileName(this,
+        tr("Open PointCloud"), ".",
+        filter);
     if (fileName == "") return;
-    pcl::io::loadPLYFile(fileName.toStdString(), *cloud);
-    view->addPointCloud(cloud, "cloud");
-    view->resetCamera();
-    view->spin();
-    ui.openGLWidget->update();
-    QString dir = QFileDialog::getExistingDirectory(
-        nullptr,
-        u8"选择文件夹", // 对话框标题
-        "/home", // 可选起始目录，可以根据需要更改或留空
-        QFileDialog::ShowDirsOnly // 选项：只显示目录
-    );
-    QMessageBox msgBox;
-    dir = u8"正在处理文件夹\n:" + dir;
-    msgBox.setText(dir);
-    msgBox.setStandardButtons(QMessageBox::Cancel);
-    msgBox.exec();
-    QMessageBox::information(this, "Information", u8"开始进行后处理：\n降采样···");
-    QMessageBox::information(this, "Information", u8"开始进行后处理：\n模型重建···");
+
+    QString suffix = QFileInfo(fileName).suffix().toLower();
+    logger.log("open src file:" + fileName.toStdString() + " suffix:" + suffix.toStdString());
+    cloudSrc->clear();
+    if (suffix == "ply") {
+        pcl::io::loadPLYFile(fileName.toStdString(), *cloudSrc);
+    }
+    else if (suffix == "pcd") {
+        pcl::io::loadPCDFile(fileName.toStdString(), *cloudSrc);
+    }
+    else {
+        errorInfo(1);
+        return;
+    }
+
+    isLoadSrc = 1;
+    updatePointCloudShow();
+}
+
+void realTimeProcess::loadTar() {
+
+    QString filter = tr("Point Cloud Files (*.ply *.pcd)");
+    QString fileName = QFileDialog::getOpenFileName(this,
+        tr("Open PointCloud"), ".",
+        filter);
+    if (fileName == "") return;
+
+    QString suffix = QFileInfo(fileName).suffix().toLower();
+    logger.log("open src file:" + fileName.toStdString() + " suffix:" + suffix.toStdString());
+    cloudTar->clear();
+    if (suffix == "ply") {
+        pcl::io::loadPLYFile(fileName.toStdString(), *cloudTar);
+    }
+    else if (suffix == "pcd") {
+        pcl::io::loadPCDFile(fileName.toStdString(), *cloudTar);
+    }
+    else {
+        errorInfo(1);
+        return;
+    }
+
+    isLoadTar = 1;
+    updatePointCloudShow();
 }
 
 void realTimeProcess::initialVtkWidget() {
@@ -54,8 +87,129 @@ void realTimeProcess::initialVtkWidget() {
 
 void realTimeProcess::enterSystem() {
     QMessageBox::information(this, "Information", u8"进入系统···");
-    this->close();
-    realSystem* sys = new realSystem();
-    sys->show();
+    //this->close();
+    //realSystem* sys = new realSystem();
+    //sys->show();
+}
 
+void realTimeProcess::startReg()
+{
+    //QMessageBox::information(this, "Information", u8"开始配准···");
+    Eigen::Matrix4f transform;
+    //检验输入点云
+    if(!isLoadSrc){
+        errorInfo(2);
+        return;
+    }
+    if (!isLoadTar) {
+        errorInfo(3);
+        return;
+    }
+    bool flag = 1;
+    int regAlgoNum=ui.selectRegister->currentIndex();
+    switch (regAlgoNum) {
+        case 0:
+            QMessageBox::information(this, "Information", u8"开始GICP，请等待算法完成···");
+            transform=gicpReg(cloudSrc,cloudTar,flag);
+            break;
+        case 1:
+            QMessageBox::information(this, "Information", u8"开始改进GICP，请等待算法完成···");
+            transform = multi_scaling_gicp(cloudSrc, cloudTar, flag);
+            break;
+        case 2:
+            QMessageBox::information(this, "Information", u8"开始ICP配准···");
+            transform=icpReg(cloudSrc, cloudTar, flag);
+            break;
+        case 3:
+            QMessageBox::information(this, "Information", u8"开始NICP配准···");
+            transform= normalIcpReg(cloudSrc, cloudTar, flag);
+            break;
+        case 4:
+            QMessageBox::information(this, "Information", u8"开始nonlinearICP配准···");
+            transform = nlIcpReg(cloudSrc, cloudTar, flag);
+            break;
+        case 5:
+            QMessageBox::information(this, "Information", u8"开始FPFH-SAC配准···");
+            transform = fpfhReg(cloudSrc, cloudTar);
+            break;
+        case 6:
+            QMessageBox::information(this, "Information", u8"开始4pcs配准···");
+            transform = FpcsReg(cloudSrc, cloudTar);
+            break;
+        case 7:
+            QMessageBox::information(this, "Information", u8"开始k4pcs配准···");
+            transform = kfpcs(cloudSrc, cloudTar);
+            break;
+        case 8:
+            QMessageBox::information(this, "Information", u8"开始NDT配准···");
+            transform = NDT(cloudSrc, cloudTar);
+            break;
+        default:
+            QMessageBox::information(this, "Information", u8"err···");
+            break;
+    }
+    if (!flag) {
+        errorInfo(6);
+        return;
+    }
+    pcl::transformPointCloud(*cloudSrc, *cloudSrc, transform);
+    updatePointCloudShow();
+}
+
+void realTimeProcess::startPostProcess()
+{
+}
+
+void realTimeProcess::clearPointCloud()
+{
+}
+
+void realTimeProcess::setBackgroundColor()
+{
+}
+
+void realTimeProcess::saveCurrentPointCloud()
+{
+}
+
+void realTimeProcess::errorInfo(int errNum)
+{
+    QString str;
+    switch (errNum) {
+    case 1:
+        str = QStringLiteral("点云读取错误");
+        break;
+    case 2:
+        str = QStringLiteral("未输入源点云");
+        break;
+    case 3:
+        str = QStringLiteral("未输入目标点云");
+        break;
+    case 4:
+        str = QStringLiteral("保存路径错误");
+        break;
+    case 5:
+        str = QStringLiteral("未进行拼接，暂无结果");
+        break;
+    case 6:
+        str = QStringLiteral("配准错误，请检查点云或算法参数");
+        break;
+    }
+
+    QMessageBox::critical(this, QStringLiteral("错误"), str);
+}
+
+void realTimeProcess::updatePointCloudShow()
+{
+    view->removePointCloud("cloudSrc");
+    view->removePointCloud("cloudTar");
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbSrc(cloudSrc);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbTar(cloudTar);
+    view->addPointCloud(cloudSrc, rgbSrc, "cloudSrc");
+    view->addPointCloud(cloudTar, rgbTar, "cloudTar");
+    view->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloudSrc");
+    view->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloudTar");
+    view->resetCamera();
+    view->spin();
+    ui.openGLWidget->setRenderWindow(view->getRenderWindow());
 }
