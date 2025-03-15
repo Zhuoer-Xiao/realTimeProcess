@@ -217,6 +217,9 @@
             <height>16777215</height>
            </size>
           </property>
+          <property name="maximum">
+           <number>255</number>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -243,6 +246,9 @@
             <height>16777215</height>
            </size>
           </property>
+          <property name="maximum">
+           <number>255</number>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -268,6 +274,9 @@
             <width>16777215</width>
             <height>16777215</height>
            </size>
+          </property>
+          <property name="maximum">
+           <number>255</number>
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>

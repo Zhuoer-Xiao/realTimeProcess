@@ -15,6 +15,7 @@
 #include "logger.h"
 #include <boost/thread/thread.hpp>
 #include "registrations.h"
+#include "postProcess.h"
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 

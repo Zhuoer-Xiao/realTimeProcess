@@ -1,10 +1,5 @@
 #include "realTimeProcess.h"
 
-//更新当前点云显示
-void updatePointCloudShow() {
-
-}
-
 realTimeProcess::realTimeProcess(QWidget* parent) : QMainWindow(parent) {
     ui.setupUi(this);
     //初始化相关点云
@@ -17,6 +12,9 @@ realTimeProcess::realTimeProcess(QWidget* parent) : QMainWindow(parent) {
     connect(ui.actionloadSrcFile, SIGNAL(triggered()), this, SLOT(loadSrc()));
     connect(ui.enterSystem, SIGNAL(clicked()), this, SLOT(enterSystem()));
     connect(ui.startRegister, SIGNAL(clicked()), this, SLOT(startReg()));
+    connect(ui.startPostProcess, SIGNAL(clicked()), this, SLOT(startPostProcess()));
+    connect(ui.clearPointCLoud, SIGNAL(clicked()), this, SLOT(clearPointCloud()));
+    connect(ui.changeBackground, SIGNAL(clicked()), this, SLOT(setBackgroundColor()));
 }
 
 realTimeProcess::~realTimeProcess() {}
@@ -158,14 +156,59 @@ void realTimeProcess::startReg()
 
 void realTimeProcess::startPostProcess()
 {
+    QMessageBox::information(this, "Information", u8"开始后处理···");
+    //检验输入点云
+    if (!isLoadSrc) {
+        errorInfo(2);
+        return;
+    }
+    int postAlgoNum = ui.selectPostProcess->currentIndex();
+    PointCloudT::Ptr res(new PointCloudT);
+    switch (postAlgoNum) {
+    case 0:
+        QMessageBox::information(this, "Information", u8"开始ISS，请等待算法完成···");
+        randomSample(cloudSrc,res);
+        break;
+    case 1:
+        QMessageBox::information(this, "Information", u8"开始Random，请等待算法完成···");
+        randomSample(cloudSrc, res);
+        break;
+    case 2:
+        QMessageBox::information(this, "Information", u8"开始voxel···");
+        voxelSample(cloudSrc, res,0.5);
+        break;
+    case 3:
+        QMessageBox::information(this, "Information", u8"开始curvature···");
+        randomSample(cloudSrc, res);
+        break;
+    case 4:
+        QMessageBox::information(this, "Information", u8"meshing···");
+        break;
+    default:
+        QMessageBox::information(this, "Information", u8"err···");
+        break;
+    }
+    cloudSrc=res;
+    updatePointCloudShow();
 }
 
 void realTimeProcess::clearPointCloud()
 {
+    cloudSrc->clear();
+    cloudTar->clear();
+    updatePointCloudShow();
 }
 
 void realTimeProcess::setBackgroundColor()
 {
+    double r = ui.rSlider->value();
+    double g = ui.gSlider->value();
+    double b = ui.bSlider->value();
+    QString color = QString("rgb(%1,%2,%3)").arg(r).arg(g).arg(b);
+    QMessageBox::information(this, "Information", color);
+    view->setBackgroundColor(r/255, g/255, b/255);
+    view->spin();
+    ui.openGLWidget->setRenderWindow(view->getRenderWindow());
 }
 
 void realTimeProcess::saveCurrentPointCloud()
@@ -213,3 +256,5 @@ void realTimeProcess::updatePointCloudShow()
     view->spin();
     ui.openGLWidget->setRenderWindow(view->getRenderWindow());
 }
+
+
