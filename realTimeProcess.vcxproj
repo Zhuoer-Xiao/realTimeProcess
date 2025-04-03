@@ -99,6 +99,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <QtMoc Include="dialogs.h" />
     <ClCompile Include="logger.cpp" />
     <ClCompile Include="postProcess.cpp" />
     <ClCompile Include="realSystem.cpp" />

@@ -44,7 +44,7 @@ Eigen::Matrix4f icpReg(PointCloudT::Ptr src, PointCloudT::Ptr tar,bool&flag);
 Eigen::Matrix4f multi_scaling_gicp(PointCloudT::Ptr src, PointCloudT::Ptr tar,bool &flag);
 //Eigen::Matrix4f multi_scaling_gicp_2(PointCloudT::Ptr src, PointCloudT::Ptr tar);
 Eigen::Matrix4f normalIcpReg(PointCloudT::Ptr src, PointCloudT::Ptr tar, bool& flag);
-Eigen::Matrix4f nlIcpReg(pcl::PointCloud<pcl::PointXYZRGB>::Ptr src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr tar, bool& flag);
+Eigen::Matrix4f nlIcpReg(pcl::PointCloud<PointT>::Ptr src, pcl::PointCloud<PointT>::Ptr tar, bool& flag);
 //ÌØÕ÷µã¼ÆËã
 fpfhFeature::Ptr computeFpfhFeature(PointCloudT::Ptr input_cloud, pcl::search::KdTree<PointT>::Ptr tree);
 //void computeIssKeyPoint(const PointCloudT::Ptr& cloud, PointCloudT::Ptr& keyPoints);

@@ -8,12 +8,23 @@ realTimeProcess::realTimeProcess(QWidget* parent) : QMainWindow(parent) {
     cloudSrc.reset(new PointCloudT());
     initialVtkWidget();
 
+    //输入相关
     connect(ui.actionloadTarFile, SIGNAL(triggered()), this, SLOT(loadTar()));
     connect(ui.actionloadSrcFile, SIGNAL(triggered()), this, SLOT(loadSrc()));
+    connect(ui.loadSrcCloud, SIGNAL(clicked()), this, SLOT(loadSrc()));
+    connect(ui.loadTarCloud, SIGNAL(clicked()), this, SLOT(loadTar()));
+
+    //当前编辑的点云
+    connect(ui.editSrcCloud, SIGNAL(clicked()), this, SLOT(editSrcCloud()));
+    connect(ui.editTarCloud, SIGNAL(clicked()), this, SLOT(editTarCloud()));
+
+    //合并点云
+    connect(ui.mergeCloud, SIGNAL(clicked()), this, SLOT(mergeCloud()));
+
     connect(ui.enterSystem, SIGNAL(clicked()), this, SLOT(enterSystem()));
     connect(ui.startRegister, SIGNAL(clicked()), this, SLOT(startReg()));
     connect(ui.startPostProcess, SIGNAL(clicked()), this, SLOT(startPostProcess()));
-    connect(ui.clearPointCLoud, SIGNAL(clicked()), this, SLOT(clearPointCloud()));
+    connect(ui.clearPointCloud, SIGNAL(clicked()), this, SLOT(clearPointCloud()));
     connect(ui.changeBackground, SIGNAL(clicked()), this, SLOT(setBackgroundColor()));
 }
 
@@ -106,42 +117,78 @@ void realTimeProcess::startReg()
     bool flag = 1;
     int regAlgoNum=ui.selectRegister->currentIndex();
     switch (regAlgoNum) {
-        case 0:
-            QMessageBox::information(this, "Information", u8"开始GICP，请等待算法完成···");
-            transform=gicpReg(cloudSrc,cloudTar,flag);
+    case 0: {
+            gicpInputDialog dialog;
+            dialog.exec();
+            //QString infos = QString("%1,%2,%3,%4").arg(dialog.getMaxDistance()).arg(dialog.getScale()).arg(dialog.getMaxDistance()).arg(dialog.getReciprocalCorrespondences());
+            //QMessageBox::information(this, "Information", infos);
+            transform = gicpReg(cloudSrc, cloudTar, flag);
             break;
-        case 1:
-            QMessageBox::information(this, "Information", u8"开始改进GICP，请等待算法完成···");
+        }
+    case 1: {
+            //QMessageBox::information(this, "Information", u8"开始改进GICP，请等待算法完成···");
+            myGicpInputDialog dialog;
+            dialog.exec();
             transform = multi_scaling_gicp(cloudSrc, cloudTar, flag);
             break;
-        case 2:
-            QMessageBox::information(this, "Information", u8"开始ICP配准···");
-            transform=icpReg(cloudSrc, cloudTar, flag);
+        }
+            
+    case 2: {
+            //QMessageBox::information(this, "Information", u8"开始ICP配准···");
+            icpInputDialog dialog;
+            dialog.exec();
+            transform = icpReg(cloudSrc, cloudTar, flag);
             break;
-        case 3:
-            QMessageBox::information(this, "Information", u8"开始NICP配准···");
-            transform= normalIcpReg(cloudSrc, cloudTar, flag);
+        }
+            
+    case 3: {
+            //QMessageBox::information(this, "Information", u8"开始NICP配准···");
+            nicpInputDialog dialog;
+            dialog.exec();
+            transform = normalIcpReg(cloudSrc, cloudTar, flag);
             break;
-        case 4:
-            QMessageBox::information(this, "Information", u8"开始nonlinearICP配准···");
-            transform = nlIcpReg(cloudSrc, cloudTar, flag);
-            break;
-        case 5:
-            QMessageBox::information(this, "Information", u8"开始FPFH-SAC配准···");
-            transform = fpfhReg(cloudSrc, cloudTar);
-            break;
-        case 6:
-            QMessageBox::information(this, "Information", u8"开始4pcs配准···");
-            transform = FpcsReg(cloudSrc, cloudTar);
-            break;
-        case 7:
-            QMessageBox::information(this, "Information", u8"开始k4pcs配准···");
-            transform = kfpcs(cloudSrc, cloudTar);
-            break;
-        case 8:
-            QMessageBox::information(this, "Information", u8"开始NDT配准···");
-            transform = NDT(cloudSrc, cloudTar);
-            break;
+        }
+            
+    case 4: {
+        //QMessageBox::information(this, "Information", u8"开始nonlinearICP配准···");
+        nonlinearIcpInputDialog dialog;
+        dialog.exec();
+        transform = nlIcpReg(cloudSrc, cloudTar, flag);
+        break;
+        }
+            
+    case 5: {
+        //QMessageBox::information(this, "Information", u8"开始FPFH-SAC配准···");
+        fpfhInputDialog dialog;
+        dialog.exec();
+        transform = fpfhReg(cloudSrc, cloudTar);
+        break;
+        }
+            
+    case 6: {
+        //QMessageBox::information(this, "Information", u8"开始4pcs配准···");
+        fpcsInputDialog dialog;
+        dialog.exec();
+        transform = FpcsReg(cloudSrc, cloudTar);
+        break;
+        }
+            
+    case 7: {
+        //QMessageBox::information(this, "Information", u8"开始k4pcs配准···");
+        kfpcsInputDialog dialog;
+        dialog.exec();
+        transform = kfpcs(cloudSrc, cloudTar);
+        break;
+        }
+            
+    case 8: {
+        //QMessageBox::information(this, "Information", u8"开始NDT配准···");
+        NDTInputDialog dialog;
+        dialog.exec();
+        transform = NDT(cloudSrc, cloudTar);
+        break;
+        }
+            
         default:
             QMessageBox::information(this, "Information", u8"err···");
             break;
@@ -155,7 +202,27 @@ void realTimeProcess::startReg()
 }
 
 void realTimeProcess::startPostProcess()
-{
+{   
+    //参数校验
+    PointCloudT::Ptr cloudToProcess(new PointCloudT);
+    if (editFlag) {
+        if (!isLoadTar)
+        {
+            errorInfo(3);
+            return;
+        }
+        cloudToProcess = cloudTar;
+    }
+    else {
+        if (!isLoadSrc)
+        {
+            errorInfo(2);
+            return;
+        }
+        cloudToProcess = cloudSrc;
+    }
+
+
     QMessageBox::information(this, "Information", u8"开始后处理···");
     //检验输入点云
     if (!isLoadSrc) {
@@ -166,21 +233,37 @@ void realTimeProcess::startPostProcess()
     PointCloudT::Ptr res(new PointCloudT);
     switch (postAlgoNum) {
     case 0:
-        QMessageBox::information(this, "Information", u8"开始ISS，请等待算法完成···");
-        randomSample(cloudSrc,res);
+    {
+        //QMessageBox::information(this, "Information", u8"开始ISS，请等待算法完成···");
+        issInputDialog dialog;
+        dialog.exec();
+        newSample(cloudToProcess, res);
         break;
+    }
     case 1:
-        QMessageBox::information(this, "Information", u8"开始Random，请等待算法完成···");
-        randomSample(cloudSrc, res);
+    {
+        //QMessageBox::information(this, "Information", u8"开始Random，请等待算法完成···");
+        randomInputDialog dialog;
+        dialog.exec();
+        randomSample(cloudToProcess, res);
         break;
+    }
     case 2:
-        QMessageBox::information(this, "Information", u8"开始voxel···");
-        voxelSample(cloudSrc, res,0.5);
+    {
+        //QMessageBox::information(this, "Information", u8"开始voxel···");
+        voxelInputDialog dialog;
+        dialog.exec();
+        voxelSample(cloudToProcess, res, 0.5);
         break;
+    }
     case 3:
-        QMessageBox::information(this, "Information", u8"开始curvature···");
-        randomSample(cloudSrc, res);
+    {
+        //QMessageBox::information(this, "Information", u8"开始curvature···");
+        curvatureInputDialog dialog;
+        dialog.exec();
+        randomSample(cloudToProcess, res);
         break;
+    }
     case 4:
         QMessageBox::information(this, "Information", u8"meshing···");
         break;
@@ -188,7 +271,15 @@ void realTimeProcess::startPostProcess()
         QMessageBox::information(this, "Information", u8"err···");
         break;
     }
-    cloudSrc=res;
+    QMessageBox::information(this, "Information", u8"计算完成！");
+    
+    if (editFlag) {
+        cloudTar = res;
+    }
+    else {
+        cloudSrc = res;
+    }
+
     updatePointCloudShow();
 }
 
@@ -257,4 +348,24 @@ void realTimeProcess::updatePointCloudShow()
     ui.openGLWidget->setRenderWindow(view->getRenderWindow());
 }
 
+void realTimeProcess::editSrc() {
+    editFlag = 0;
+}
 
+void realTimeProcess::editTar() {
+    editFlag = 1;
+}
+
+void realTimeProcess::mergeCloud() {
+    if (!isLoadSrc) {
+        errorInfo(2);
+        return;
+    }
+    if (!isLoadTar) {
+        errorInfo(3);
+        return;
+    }
+    *cloudTar+=*cloudSrc;
+    isLoadSrc = 0;
+    updatePointCloudShow();
+}

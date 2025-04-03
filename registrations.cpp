@@ -1,5 +1,5 @@
 #include "registrations.h"
-void toXYZ(pcl::PointCloud<pcl::PointXYZRGB>::Ptr in,pcl::PointCloud<pcl::PointXYZ>::Ptr out) {
+void toXYZ(pcl::PointCloud<PointT>::Ptr in,pcl::PointCloud<pcl::PointXYZ>::Ptr out) {
 	out->points.resize(in->points.size());
 	for (int i = 0; i < in->points.size(); i++) {
         out->points[i].x = in->points[i].x;
@@ -342,7 +342,7 @@ Eigen::Matrix4f kfpcs(PointCloudT::Ptr& src, PointCloudT::Ptr& tar) {
 
 }
 
-Eigen::Matrix4f nlIcpReg(pcl::PointCloud<pcl::PointXYZRGB>::Ptr src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr tar,bool&flag) {
+Eigen::Matrix4f nlIcpReg(pcl::PointCloud<PointT>::Ptr src, pcl::PointCloud<PointT>::Ptr tar,bool&flag) {
 	pcl::PointCloud<pcl::PointXYZ>::Ptr srcTmp(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr tarTmp(new pcl::PointCloud<pcl::PointXYZ>);
 	toXYZ(src, srcTmp);

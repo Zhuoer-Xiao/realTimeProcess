@@ -1,6 +1,7 @@
 #pragma once
 #pragma once
-
+#include <QtWidgets/qinputdialog.h>
+#include <QtWidgets/qformlayout.h>
 #include <QtWidgets/QMainWindow>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
@@ -16,6 +17,7 @@
 #include <boost/thread/thread.hpp>
 #include "registrations.h"
 #include "postProcess.h"
+#include "dialogs.h"
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 
@@ -36,6 +38,9 @@ private:
 	//相关标志位
     bool isLoadSrc = false;
     bool isLoadTar = false;
+	//编辑标记，0为源点云，1为目标点云
+    int editFlag = 0;
+
 
 	//日志
 	Logger logger;
@@ -62,5 +67,12 @@ private slots:
     void errorInfo(int errNum);
 	//todo:更新显示点云
 	void updatePointCloudShow();
+
+	//
+	void editSrc();
+	void editTar();
+
+	//合并点云到目标点云
+    void mergeCloud();
 };
 
