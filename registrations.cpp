@@ -1,12 +1,5 @@
 #include "registrations.h"
-void toXYZ(pcl::PointCloud<PointT>::Ptr in,pcl::PointCloud<pcl::PointXYZ>::Ptr out) {
-	out->points.resize(in->points.size());
-	for (int i = 0; i < in->points.size(); i++) {
-        out->points[i].x = in->points[i].x;
-        out->points[i].y = in->points[i].y;
-        out->points[i].z = in->points[i].z;
-	}
-}
+
 
 // 类型定义  
 typedef pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> NormalEstimationT;

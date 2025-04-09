@@ -6,6 +6,7 @@ realTimeProcess::realTimeProcess(QWidget* parent) : QMainWindow(parent) {
     cloudShow.reset(new PointCloudT());
     cloudTar.reset(new PointCloudT());
     cloudSrc.reset(new PointCloudT());
+    cloudShowDown.reset(new PointCloudT());
     initialVtkWidget();
 
     //输入相关
@@ -26,6 +27,9 @@ realTimeProcess::realTimeProcess(QWidget* parent) : QMainWindow(parent) {
     connect(ui.startPostProcess, SIGNAL(clicked()), this, SLOT(startPostProcess()));
     connect(ui.clearPointCloud, SIGNAL(clicked()), this, SLOT(clearPointCloud()));
     connect(ui.changeBackground, SIGNAL(clicked()), this, SLOT(setBackgroundColor()));
+    
+    connect(ui.enterSystem, SIGNAL(clicked()), this, SLOT(realTimeSys()));
+    connect(ui.stopSystem, SIGNAL(clicked()), this, SLOT(stopSystem()));
 }
 
 realTimeProcess::~realTimeProcess() {}
@@ -95,7 +99,7 @@ void realTimeProcess::initialVtkWidget() {
 }
 
 void realTimeProcess::enterSystem() {
-    QMessageBox::information(this, "Information", u8"进入系统···");
+    //QMessageBox::information(this, "Information", u8"进入系统···");
     //this->close();
     //realSystem* sys = new realSystem();
     //sys->show();
@@ -368,4 +372,153 @@ void realTimeProcess::mergeCloud() {
     *cloudTar+=*cloudSrc;
     isLoadSrc = 0;
     updatePointCloudShow();
+}
+
+void realTimeProcess::stopSystem() {
+    isRunning.store(false, memory_order_release);
+}
+
+void realTimeProcess::realTimeSys() {
+    //选择文件夹
+    //读取文件路径
+    path = QFileDialog::getExistingDirectory(this, "选择监控文件夹");
+    {
+        unique_lock<mutex> textLck(textMutex);
+        ui.textBrowser->append(u8"监控文件夹：" + path + "\n");
+    }
+    logger.log("监控文件夹：" + path.toStdString() + "\n");
+    if (path.isEmpty()) {
+        unique_lock<mutex> textLck(textMutex);
+        ui.textBrowser->append(u8"监控文件夹为空，请重新选择！\n");
+    }
+    logger.log("启动线程前\n");
+    //QThread* m_workerThread = new QThread;
+    //connect(m_workerThread, &QThread::started, this, &realTimeProcess::folderMonitor);
+    //m_workerThread->start();
+    //m_workerThread->wait();
+    //QMessageBox::information(this, "Information", u8"降采样中···");
+    std::thread worker(&realTimeProcess::folderMonitor, this);
+    worker.detach();
+}
+
+void realTimeProcess::showDialog() {
+    QDialog* m_progressDialog = new QDialog(qobject_cast<QWidget*>(parent()));
+    QLabel* label = new QLabel(u8"正在进行实时拼接...", m_progressDialog);
+    QPushButton* abortButton = new QPushButton(u8"终止", m_progressDialog);
+
+    QVBoxLayout* layout = new QVBoxLayout(m_progressDialog);
+    layout->addWidget(label);
+    layout->addWidget(abortButton);
+    m_progressDialog->setLayout(layout);
+
+    // 连接终止信号
+    connect(abortButton, &QPushButton::clicked,
+        this, &realTimeProcess::stopSystem);
+
+    // 显示非模态对话框
+    m_progressDialog->show();
+    // 确保对话框可见
+    m_progressDialog->show();
+    m_progressDialog->raise();  // 置顶显示
+    m_progressDialog->activateWindow(); // 激活窗口
+    m_progressDialog->resize(300, 100); // 明确设置初始尺寸
+}
+
+void realTimeProcess::updateWhole() {
+    view->removePointCloud("cloudShow");
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloudShow);
+    view->addPointCloud(cloudShow, rgb, "cloudShow");
+    view->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloudShow");
+    view->resetCamera();
+    view->spin();
+    ui.openGLWidget->setRenderWindow(view->getRenderWindow());
+}
+
+//更改当前状态为运行中-读取文件路径-轮询文件路径
+void realTimeProcess::folderMonitor()
+{
+    logger.log("进入子线程，开始更改状态\n");
+    //更新状态
+    isRunning.store(true, std::memory_order_seq_cst);
+    logger.log("状态更改完成，开始遍历文件\n");
+    QDir dir(path);
+    QSet<QString> knownFiles;
+    while (isRunning.load(memory_order_acquire)) {
+        QThread::msleep(1000);
+        QCoreApplication::processEvents();
+        QSet<QString> currentFiles = dir.entryList({ "*.ply", "*.pcd" }, QDir::Files).toSet();
+        auto newFiles=currentFiles - knownFiles;
+        for (const QString& file : newFiles) {
+            knownFiles.insert(file);
+            logger.log("开始处理"+file.toStdString()+"\n");
+            QString fullPath = dir.filePath(file);
+            PointCloudT::Ptr cloud(new PointCloudT);
+
+            bool success = false;
+            if (fullPath.endsWith(".ply")) {
+                (pcl::io::loadPLYFile(fullPath.toStdString(), *cloud) == 0);
+            }
+            else if (fullPath.endsWith(".pcd")) {
+                (pcl::io::loadPCDFile(fullPath.toStdString(), *cloud) == 0);
+            }
+            //读取成功后开始配准
+            if (cloud->size() < 100) {
+                logger.log("读取失败\n");
+                continue;
+            }
+            logger.log("读取成功\n");
+            //初始点云
+            if (cloudNum == 0) {
+                points.push_back(cloud);
+                cloudNum++;
+                PointCloudT::Ptr down(new PointCloudT());;
+                voxelSample(cloud, down, 0.1);
+                matcher.addNewFeature(down);
+                pointsDown.push_back(down);
+                *cloudShowDown+=*down;
+                *cloudShow+=*cloud;
+                logger.log("第一帧点云，直接添加\n");
+            }
+            else {
+                //进行匹配
+                PointCloudT::Ptr down(new PointCloudT());;
+                voxelSample(cloud, down, 0.1);
+                int index=matcher.match(down);
+                //{
+                //    unique_lock<mutex> textLck(textMutex);
+                //    ui.textBrowser->append(u8"最匹配点云：" + QString::number(index) + "\n");
+                //}
+                bool regSuccess = false;
+                Eigen::Matrix4f trans=gicpReg(down, pointsDown[index], regSuccess);
+                if (!regSuccess) {
+                    //{
+                    //    unique_lock<mutex> textLck(textMutex);
+                    //    ui.textBrowser->append(u8"局部拼接错误，开始全局拼接\n");
+                    //}
+                    trans = gicpReg(down, cloudShowDown, regSuccess);
+                }
+                if (!regSuccess) {
+                    //{
+                    //    unique_lock<mutex> textLck(textMutex);
+                    //    ui.textBrowser->append(u8"拼接失败\n");
+                    //}
+                    continue;
+                }
+                pcl::transformPointCloud(*cloud, *cloud, trans);
+                matcher.addNewFeature(down);
+                points.push_back(cloud);
+                cloudNum++;
+                pointsDown.push_back(down);
+                *cloudShowDown+=*down;
+                *cloudShow+=*cloud;
+            }
+            logger.log("cloudShow:"+to_string(cloudShow->size())+"\n");
+            logger.log("拼接成功，开始可视化\n");
+
+            QMetaObject::invokeMethod(this, "updateWhole", Qt::QueuedConnection);
+            logger.log("可视化更新完成\n");
+            QThread::msleep(1000);
+        }
+    }
+    QMetaObject::invokeMethod(this, "startPostProcess", Qt::QueuedConnection);
 }

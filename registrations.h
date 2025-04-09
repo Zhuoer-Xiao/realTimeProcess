@@ -1,34 +1,13 @@
 #pragma once
-#include <pcl/keypoints/iss_3d.h>
-#include <pcl/point_types.h> 
-#include <pcl/point_cloud.h>
+#include "pclHeaders.h"
 #include <boost/random.hpp> //Ëæ»úÊý
-#include <pcl/io/ply_io.h>
 #include <direct.h>
 #include <filesystem>
 #include <cmath>
-#include <pcl/features/fpfh.h>
-#include <pcl/registration/ia_ransac.h>
-#include <pcl/common/transforms.h> 
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/features/fpfh_omp.h> 
-#include <pcl/features/normal_3d.h>
-#include <pcl/features/normal_3d_omp.h>
-#include <pcl/point_types.h>  
-#include <pcl/io/pcd_io.h>  
-#include <pcl/features/normal_3d.h>  
-#include <pcl/keypoints/iss_3d.h>  
-#include <pcl/features/fpfh.h>  
-#include <pcl/registration/sample_consensus_prerejective.h>  
-#include <pcl/registration/icp.h>
-#include <pcl/registration/ia_fpcs.h>
+
 #include <iostream>
-#include <pcl/registration/gicp.h>
-#include <pcl/registration/ndt.h>
-#include <pcl/registration/ia_kfpcs.h>
-#include <pcl/registration/icp_nl.h>
+
 #include <flann/flann.hpp>
-#include <pcl/features/vfh.h>
 using namespace std;
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointXYZRGB PointRGB;

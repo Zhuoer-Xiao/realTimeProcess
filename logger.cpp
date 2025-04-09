@@ -4,7 +4,7 @@
 #include <sstream>
 
 Logger::Logger(const std::string& filePath) {
-    logFile.open(filePath, std::ios::out | std::ios::app);
+    logFile.open(filePath, std::ios::out);
     if (!logFile.is_open()) {
         throw std::runtime_error("Could not open the log file.");
     }

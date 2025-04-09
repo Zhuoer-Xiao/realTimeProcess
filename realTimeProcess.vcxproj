@@ -101,11 +101,10 @@
   <ItemGroup>
     <QtMoc Include="dialogs.h" />
     <ClCompile Include="logger.cpp" />
+    <ClCompile Include="matcher.cpp" />
     <ClCompile Include="postProcess.cpp" />
-    <ClCompile Include="realSystem.cpp" />
     <ClCompile Include="registrations.cpp" />
     <QtRcc Include="realTimeProcess.qrc" />
-    <QtUic Include="realSystem.ui" />
     <QtUic Include="realTimeProcess.ui" />
     <QtMoc Include="realTimeProcess.h" />
     <ClCompile Include="realTimeProcess.cpp" />
@@ -113,8 +112,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="logger.h" />
+    <ClInclude Include="matcher.h" />
+    <ClInclude Include="pclHeaders.h" />
     <ClInclude Include="postProcess.h" />
-    <ClInclude Include="realSystem.h" />
     <ClInclude Include="registrations.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
