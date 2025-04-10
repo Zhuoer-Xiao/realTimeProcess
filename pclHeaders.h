@@ -44,6 +44,7 @@
 #include <pcl/registration/icp_nl.h>
 #include <pcl/features/vfh.h>
 #include <pcl/io/ply_io.h>
+#include <pcl/surface/poisson.h>
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 

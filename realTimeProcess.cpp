@@ -449,6 +449,7 @@ void realTimeProcess::folderMonitor()
         QSet<QString> currentFiles = dir.entryList({ "*.ply", "*.pcd" }, QDir::Files).toSet();
         auto newFiles=currentFiles - knownFiles;
         for (const QString& file : newFiles) {
+            if (!isRunning.load(memory_order_acquire))break;
             knownFiles.insert(file);
             logger.log("开始处理"+file.toStdString()+"\n");
             QString fullPath = dir.filePath(file);
@@ -484,24 +485,24 @@ void realTimeProcess::folderMonitor()
                 PointCloudT::Ptr down(new PointCloudT());;
                 voxelSample(cloud, down, 0.1);
                 int index=matcher.match(down);
-                //{
-                //    unique_lock<mutex> textLck(textMutex);
-                //    ui.textBrowser->append(u8"最匹配点云：" + QString::number(index) + "\n");
-                //}
+                {
+                    unique_lock<mutex> textLck(textMutex);
+                    ui.textBrowser->append(u8"最匹配点云：" + QString::number(index) + "\n");
+                }
                 bool regSuccess = false;
                 Eigen::Matrix4f trans=gicpReg(down, pointsDown[index], regSuccess);
                 if (!regSuccess) {
-                    //{
-                    //    unique_lock<mutex> textLck(textMutex);
-                    //    ui.textBrowser->append(u8"局部拼接错误，开始全局拼接\n");
-                    //}
+                    {
+                        unique_lock<mutex> textLck(textMutex);
+                        ui.textBrowser->append(u8"局部拼接错误，开始全局拼接\n");
+                    }
                     trans = gicpReg(down, cloudShowDown, regSuccess);
                 }
                 if (!regSuccess) {
-                    //{
-                    //    unique_lock<mutex> textLck(textMutex);
-                    //    ui.textBrowser->append(u8"拼接失败\n");
-                    //}
+                    {
+                        unique_lock<mutex> textLck(textMutex);
+                        ui.textBrowser->append(u8"拼接失败\n");
+                    }
                     continue;
                 }
                 pcl::transformPointCloud(*cloud, *cloud, trans);
@@ -520,5 +521,38 @@ void realTimeProcess::folderMonitor()
             QThread::msleep(1000);
         }
     }
-    QMetaObject::invokeMethod(this, "startPostProcess", Qt::QueuedConnection);
+    
+    QMetaObject::invokeMethod(this, "PostProcessWhole", Qt::QueuedConnection);
+}
+
+void realTimeProcess::PostProcessWhole() {
+    QMessageBox::information(this, "Information", u8"开始后处理，耗时长，请等待···");
+    pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>);
+    tree->setInputCloud(cloudShow);
+    ne.setInputCloud(cloudShow);
+    ne.setSearchMethod(tree);
+    ne.setKSearch(15);  // 邻域点数[1,5](@ref)
+    ne.compute(*normals);
+
+    // Step 2: 合并颜色与法线信息
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_with_normals(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::concatenateFields(*cloudShow, *normals, *cloud_with_normals);
+
+    // Step 3: 泊松重建（适配RGB颜色）
+    pcl::Poisson<pcl::PointXYZRGBNormal> poisson;
+    pcl::PolygonMesh::Ptr mesh(new pcl::PolygonMesh);
+    poisson.setInputCloud(cloud_with_normals);
+    poisson.setDepth(9);          
+    poisson.setSolverDivide(8);  
+    poisson.reconstruct(*mesh);
+
+    // Step 4: 更新可视化组件
+    view->removeAllPointClouds();
+    view->removeAllShapes();
+    view->addPolygonMesh(*mesh, "reconstructed_mesh");
+    view->setPointCloudRenderingProperties(
+        pcl::visualization::PCL_VISUALIZER_OPACITY, 0.7, "reconstructed_mesh"); // 半透明显示[5](@ref)
+    view->spinOnce(10); // 非阻塞刷新[3](@ref)
 }

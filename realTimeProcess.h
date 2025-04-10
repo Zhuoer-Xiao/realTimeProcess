@@ -101,6 +101,7 @@ private slots:
 	void stopSystem();
 	void updateWhole();
 	void showDialog();
+	void PostProcessWhole();
 signals:
 	void updateVisualizationRequested();
 };
